@@ -1,0 +1,5 @@
+query:
+  service:
+    type: LoadBalancer
+    port: 16686
+    targetPort: 16686

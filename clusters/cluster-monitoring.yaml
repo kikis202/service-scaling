@@ -1,0 +1,25 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: cluster-monitoring
+servers: 1
+agents: 0
+image: rancher/k3s:v1.33.0-k3s1
+options:
+  k3s:
+    extraArgs:
+      - arg: "--disable=traefik"
+        nodeFilters:
+          - server:*
+  kubeconfig:
+    updateDefaultKubeconfig: true
+ports:
+  - port: "9090:9090"
+    nodeFilters:
+      - loadbalancer
+  - port: "3000:3000"
+    nodeFilters:
+      - loadbalancer
+  - port: "16686:16686"
+    nodeFilters:
+      - loadbalancer
