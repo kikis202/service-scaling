@@ -1,5 +1,48 @@
+nameOverride: my-jaeger
+
+allInOne:
+  enabled: false
+
+agent:
+  enabled: true
+
+collector:
+  enabled: true
+
 query:
+  enabled: true
   service:
     type: LoadBalancer
     port: 16686
     targetPort: 16686
+
+provisionDataStore:
+  cassandra: false
+  elasticsearch: true
+
+storage:
+  type: elasticsearch
+
+elasticsearch:
+  master:
+    masterOnly: false
+    replicaCount: 1
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      requests:
+        memory: "1Gi"
+      limits:
+        memory: "1Gi"
+
+  extraEnvVars:
+    - name: ES_JAVA_OPTS
+      value: "-Xms512m -Xmx512m"
+
+  data:
+    replicaCount: 0
+  coordinating:
+    replicaCount: 0
+  ingest:
+    replicaCount: 0

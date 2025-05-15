@@ -1,4 +1,3 @@
-
 prometheus:
   service:
     type: LoadBalancer
@@ -6,5 +5,14 @@ prometheus:
 grafana:
   service:
     type: LoadBalancer
-    port: 3000
-    targetPort: 3000
+
+  sidecar:
+    datasources:
+      enabled: true
+
+  additionalDataSources:
+    - name: Jaeger
+      type: jaeger
+      access: proxy
+      url: http://jaeger-my-jaeger-query.monitoring.svc.cluster.local:16686
+      isDefault: false

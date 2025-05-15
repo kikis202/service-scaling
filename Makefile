@@ -79,19 +79,21 @@ install-monitoring:
 	@echo "▶ monitoring stack on cluster-monitoring"
 	@kubectl create namespace monitoring --dry-run=client -o yaml \
 	  | kubectl apply -f -
-	@helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null
-	@helm repo update >/dev/null
+
+	@helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	@helm repo update
 	@helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+	  --version 72.3.1 \
+	  --values monitoring/helm-values/prom-values.yaml  \
 	  --namespace monitoring \
-	  --create-namespace \
-	  --values monitoring/helm-values/prom-values.yaml \
-	  >/dev/null 2>&1 || echo "✔ Prometheus stack already installed"
-	@helm repo add jaegertracing https://jaegertracing.github.io/helm-charts >/dev/null
-	@helm repo update >/dev/null
+	  --create-namespace || echo "✔ Prometheus stack already installed"
+
+	@helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+	@helm repo update
 	@helm upgrade --install jaeger jaegertracing/jaeger \
 	  --namespace monitoring \
-	  --values monitoring/helm-values/jaeger-values.yaml \
-	  >/dev/null 2>&1 || echo "✔ Jaeger already installed"
+	  --values monitoring/helm-values/jaeger-values.yaml || echo "✔ Jaeger already installed"
+
 	@echo "✔ monitoring ready"
 
 ## 5. Enforce exclusive testing clusters, then deploy
