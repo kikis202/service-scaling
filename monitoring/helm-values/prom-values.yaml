@@ -1,4 +1,7 @@
 prometheus:
+  prometheusSpec:
+    enableRemoteWriteReceiver: true
+
   service:
     type: LoadBalancer
 

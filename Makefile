@@ -76,7 +76,11 @@ install-remote-monitoring:
 	@helm upgrade --install prom-agent prometheus-community/prometheus \
 	  --namespace monitoring \
 	  --create-namespace \
+	  --set server.persistentVolume.enabled=false \
+	  --set alertmanager.enabled=false \
 	  --values monitoring/values-remote-write.yaml
+	@kubectl -n monitoring rollout status deployment/prom-agent-prometheus-server
+	@echo "✅ Prometheus agent installed with remote write configured"
 
 install-hpa:
 	@echo "▶ hpa deployments"
