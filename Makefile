@@ -1,7 +1,7 @@
 # scripts/Makefile
 
 .SILENT: create-hpa create-knative create-monitoring \
-          install-knative install-kourier install-monitoring \
+          install-knative install-monitoring \
           deploy-hpa deploy-knative deploy-monitoring deploy-all teardown
 
 ifndef VERBOSE
@@ -28,51 +28,60 @@ create-knative:
 create-monitoring:
 	$(call ensure_cluster,cluster-monitoring)
 
-## 2. Knative Serving on knative
-install-knative:
-	if k3d cluster list | grep -qw cluster-knative; then \
-	  echo "▶ Knative on cluster-knative"; \
-	  if ! kubectl get crd configurations.serving.knative.dev \
-	         --context k3d-cluster-knative >/dev/null 2>&1; then \
-	    kubectl apply --context k3d-cluster-knative \
-	      -f https://github.com/knative/serving/releases/download/knative-v1.18.0/serving-crds.yaml; \
-	  fi; \
-	  if ! kubectl get deployment controller \
-	         -n knative-serving \
-	         --context k3d-cluster-knative >/dev/null 2>&1; then \
-	    kubectl apply --context k3d-cluster-knative \
-	      -f https://github.com/knative/serving/releases/download/knative-v1.18.0/serving-core.yaml; \
-	  fi; \
-	  echo "✔ Knative ready in cluster-knative"; \
-	fi; \
 
-## 3. Kourier ingress on all testing clusters
-install-kourier:
+## 2. Knative Serving and Kourier on knative + hpa
+install-knative:
 	@for ctx in hpa knative; do \
-	  if k3d cluster list | grep -qw cluster-$${ctx}; then \
-	    echo "▶ Kourier on cluster-$${ctx}"; \
-	    if ! kubectl get ns kourier-system --context k3d-cluster-$${ctx} >/dev/null 2>&1; then \
-	      kubectl apply --context k3d-cluster-$${ctx} \
+	  if k3d cluster list | grep -qw cluster-$$ctx; then \
+	    echo "▶ Knative on cluster-$$ctx"; \
+	    if ! kubectl get crd configurations.serving.knative.dev \
+	         --context k3d-cluster-$$ctx >/dev/null 2>&1; then \
+	      kubectl apply --context k3d-cluster-$$ctx \
+	        -f https://github.com/knative/serving/releases/download/knative-v1.18.0/serving-crds.yaml; \
+	    fi; \
+	    if ! kubectl get deployment controller \
+	         -n knative-serving \
+	         --context k3d-cluster-$$ctx >/dev/null 2>&1; then \
+	      kubectl apply --context k3d-cluster-$$ctx \
+	        -f https://github.com/knative/serving/releases/download/knative-v1.18.0/serving-core.yaml; \
+	    fi; \
+	    echo "✔ Knative ready in cluster-$$ctx"; \
+	    echo "▶ Kourier on cluster-$$ctx"; \
+	    if ! kubectl get ns kourier-system \
+	         --context k3d-cluster-$$ctx >/dev/null 2>&1; then \
+	      kubectl apply --context k3d-cluster-$$ctx \
 	        -f https://github.com/knative/net-kourier/releases/latest/download/kourier.yaml; \
 	    fi; \
-	    if kubectl get ns knative-serving --context k3d-cluster-$${ctx} >/dev/null 2>&1; then \
-	      cls=$$(kubectl get cm config-network -n knative-serving \
-	                --context k3d-cluster-$${ctx} \
-	                -o jsonpath='{.data.ingress\.class}'); \
+	    if kubectl get ns knative-serving \
+	         --context k3d-cluster-$$ctx >/dev/null 2>&1; then \
+	      cls=$$(kubectl get cm config-network \
+	                    -n knative-serving \
+	                    --context k3d-cluster-$$ctx \
+	                    -o jsonpath='{.data.ingress\.class}'); \
 	      if [ "$$cls" != "kourier.ingress.networking.knative.dev" ]; then \
-	        kubectl patch cm config-network -n knative-serving \
-	          --context k3d-cluster-$${ctx} \
-	          --type merge \
-	          --patch '{"data":{"ingress.class":"kourier.ingress.networking.knative.dev"}}'; \
+	          kubectl patch cm config-network \
+	            -n knative-serving \
+	            --context k3d-cluster-$$ctx \
+	            --type merge \
+	            --patch '{"data":{"ingress.class":"kourier.ingress.networking.knative.dev"}}'; \
 	      fi; \
 	    fi; \
-	    echo "✔ Kourier ready in cluster-$${ctx}"; \
+	    echo "✔ Kourier ready in cluster-$$ctx"; \
 	  fi; \
 	done
+
+install-remote-monitoring:
+	@helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	@helm repo update
+	@helm upgrade --install prom-agent prometheus-community/prometheus \
+	  --namespace monitoring \
+	  --create-namespace \
+	  --values monitoring/values-remote-write.yaml
 
 install-hpa:
 	@echo "▶ hpa deployments"
 	@docker build -t echo-service:v1 -f Dockerfile .
+	@k3d image import echo-service:v1 --cluster cluster-hpa
 	@kubectl config use-context k3d-cluster-hpa
 	@kubectl apply -f kubernetes/hpa/echo-service.yaml
 
@@ -103,7 +112,9 @@ deploy-hpa:
 	  echo "✖ Another testing cluster is active — please teardown first"; exit 1; \
 	fi
 	$(MAKE) create-hpa
-	$(MAKE) install-kourier
+	$(MAKE) install-knative
+	$(MAKE) install-hpa
+	$(MAKE) install-remote-monitoring
 	@echo "✔ deploy-hpa complete — cluster-hpa is ready"
 
 deploy-knative:
@@ -112,7 +123,7 @@ deploy-knative:
 	fi
 	$(MAKE) create-knative
 	$(MAKE) install-knative
-	$(MAKE) install-kourier
+	$(MAKE) install-remote-monitoring
 	@echo "✔ deploy-knative complete — cluster-knative is ready"
 
 deploy-monitoring:
@@ -122,4 +133,7 @@ deploy-monitoring:
 
 ## 6. Tear everything down
 teardown:
+	-k3d cluster delete --all && echo "✔ all clusters deleted"
+
+teardown-hpa:
 	-k3d cluster delete --all && echo "✔ all clusters deleted"

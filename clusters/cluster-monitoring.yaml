@@ -14,12 +14,15 @@ options:
   kubeconfig:
     updateDefaultKubeconfig: true
 ports:
-  - port: "9090:9090"
+  - port: "9090:9090"            # Prometheus
     nodeFilters:
       - loadbalancer
-  - port: "3000:80"
+  - port: "3000:80"              # Grafana
     nodeFilters:
       - loadbalancer
-  - port: "16686:16686"
+  - port: "16686:16686"          # Jaeger query
+    nodeFilters:
+      - loadbalancer
+  - port: "14268:14268"          # Jaeger collector
     nodeFilters:
       - loadbalancer

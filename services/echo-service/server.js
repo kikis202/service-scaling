@@ -1,7 +1,7 @@
 import { setupServiceApp } from '../common/service-setup.js';
 import { createChildSpan, decorateSpan } from '../common/tracing.js';
 
-const serviceName = 'echo-service';
+const serviceName = 'echoService';
 const { app, tracer, port, setupGracefulShutdown } = setupServiceApp(serviceName);
 
 // Echo endpoint

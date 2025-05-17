@@ -36,7 +36,11 @@ spec:
         - name: JAEGER_REPORTER_LOG_SPANS
           value: "true"
         - name: JAEGER_COLLECTOR_ENDPOINT
-          value: "http://jaeger-my-jaeger-collector.monitoring:14268/api/traces"
+          value: "http://host.k3d.internal:14268/api/traces"
+        - name: JAEGER_AGENT_HOST
+          value: "host.k3d.internal"
+        - name: JAEGER_AGENT_PORT
+          value: "6831"
         readinessProbe:
           httpGet:
             path: /health

@@ -2,6 +2,8 @@ apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: echo-service
+  annotations:
+    sidecar.jaegertracing.io/collector-endpoint: "http://host.k3d.internal:14268/api/traces"
 spec:
   template:
     metadata:
@@ -30,7 +32,19 @@ spec:
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 10
-        # Environment variables remain the same
         env:
         - name: PORT
           value: "3000"
+        - name: JAEGER_SERVICE_NAME
+          value: "echo-service"
+        - name: JAEGER_SAMPLER_TYPE
+          value: "const"
+        - name: JAEGER_SAMPLER_PARAM
+          value: "1"
+        - name: JAEGER_REPORTER_LOG_SPANS
+          value: "true"
+        - name: JAEGER_COLLECTOR_ENDPOINT
+          value: "http://host.k3d.internal:14268/api/traces"
+        - name: JAEGER_AGENT_HOST
+          value: "host.k3d.internal"
+        - name: JAEGER_AGENT_PORT

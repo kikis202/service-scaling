@@ -8,6 +8,10 @@ agent:
 
 collector:
   enabled: true
+  service:
+    type: LoadBalancer
+    port: 14268
+    targetPort: 14268
 
 query:
   enabled: true
