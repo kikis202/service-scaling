@@ -110,6 +110,12 @@ install-monitoring:
 
 	@echo "✔ monitoring ready"
 
+apply-dashboards:
+	@echo "▶ Applying Grafana dashboards"
+	@kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+	@kubectl apply -f monitoring/dashboards/
+	@echo "✔ Dashboards applied"
+
 ## 5. Enforce exclusive testing clusters, then deploy
 deploy-hpa:
 	@if k3d cluster list | grep -E 'cluster-knative' >/dev/null; then \
@@ -133,6 +139,7 @@ deploy-knative:
 deploy-monitoring:
 	$(MAKE) create-monitoring
 	$(MAKE) install-monitoring
+	$(MAKE) apply-dashboards
 	@echo "✔ deploy-monitoring complete — cluster-monitoring is ready"
 
 ## 6. Tear everything down

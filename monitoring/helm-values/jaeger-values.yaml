@@ -36,13 +36,13 @@ elasticsearch:
       size: 10Gi
     resources:
       requests:
-        memory: "1Gi"
+        memory: "2Gi"
       limits:
-        memory: "1Gi"
+        memory: "2Gi"
 
   extraEnvVars:
     - name: ES_JAVA_OPTS
-      value: "-Xms512m -Xmx512m"
+      value: "-Xms1g -Xmx1g"
 
   data:
     replicaCount: 0

@@ -12,6 +12,12 @@ grafana:
   sidecar:
     datasources:
       enabled: true
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+      provider:
+        allowUiUpdates: true
+        foldersFromFilesStructure: true
 
   additionalDataSources:
     - name: Jaeger
@@ -19,3 +25,4 @@ grafana:
       access: proxy
       url: http://jaeger-my-jaeger-query.monitoring.svc.cluster.local:16686
       isDefault: false
+      uid: jaeger
