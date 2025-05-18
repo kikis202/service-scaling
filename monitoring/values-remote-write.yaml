@@ -6,7 +6,7 @@ server:
       cluster: hpa-cluster
 
   remoteWrite:
-    - url: "http://host.k3d.internal:9090/api/v1/write"
+    - url: "http://192.168.100.103:9090/api/v1/write"
       name: monitoring-prometheus
       queue_config:
         capacity: 2500
