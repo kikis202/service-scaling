@@ -5,6 +5,19 @@ metadata:
 servers: 1
 agents: 2
 image: rancher/k3s:v1.33.0-k3s1
+registries:
+  create:
+    name: registry.localhost
+    hostPort: "5000"
+  config: |
+    mirrors:
+      "k3d-registry.localhost:5000":
+        endpoint:
+          - http://k3d-registry.localhost:5000
+    configs:
+      "k3d-registry.localhost:5000":
+        tls:
+          insecureSkipVerify: true
 options:
   k3s:
     extraArgs:
@@ -15,4 +28,6 @@ options:
     updateDefaultKubeconfig: true
 ports:
   - port: "8080:80"
+    nodeFilters:
+      - loadbalancer
 

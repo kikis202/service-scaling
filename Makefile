@@ -70,24 +70,32 @@ install-knative:
 	  fi; \
 	done
 
-install-remote-monitoring:
-	@helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-	@helm repo update
-	@helm upgrade --install prom-agent prometheus-community/prometheus \
-	  --namespace monitoring \
-	  --create-namespace \
-	  --set server.persistentVolume.enabled=false \
-	  --set alertmanager.enabled=false \
-	  --values monitoring/values-remote-write.yaml
-	@kubectl -n monitoring rollout status deployment/prom-agent-prometheus-server
-	@echo "✅ Prometheus agent installed with remote write configured"
-
 install-hpa:
 	@echo "▶ hpa deployments"
 	@docker build -t echo-service:v1 -f Dockerfile .
 	@k3d image import echo-service:v1 --cluster cluster-hpa
 	@kubectl config use-context k3d-cluster-hpa
 	@kubectl apply -f kubernetes/hpa/echo-service.yaml
+
+install-knative-deployments:
+	@echo "▶ Deploying echo-service on Knative"
+	@kubectl patch configmap/config-deployment \
+	  --namespace knative-serving \
+	  --type merge \
+	  --patch '{"data":{"registriesSkippingTagResolving":"k3d-registry.localhost:5000"}}'
+	@kubectl apply -f kubernetes/config-domain.yaml
+	@echo "▶ Waiting for Knative webhook to be ready..."
+	@kubectl wait --for=condition=available deployment/webhook -n knative-serving --timeout=120s
+	@docker build -t k3d-registry.localhost:5000/echo-service:v1 .
+	@docker push k3d-registry.localhost:5000/echo-service:v1
+	@kubectl config use-context k3d-cluster-knative
+	@kubectl create secret docker-registry k3d-registry-credentials \
+	  --docker-server=registry.localhost:5000 \
+	  --docker-username=k3d \
+	  --docker-password=registry
+	@kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "k3d-registry-credentials"}]}'
+	@kubectl apply -f kubernetes/knative/echo-service.yaml
+	@echo "✔ echo-service deployed on Knative"
 
 install-monitoring:
 	@echo "▶ monitoring stack on cluster-monitoring"
@@ -107,8 +115,19 @@ install-monitoring:
 	@helm upgrade --install jaeger jaegertracing/jaeger \
 	  --namespace monitoring \
 	  --values monitoring/helm-values/jaeger-values.yaml || echo "✔ Jaeger already installed"
-
 	@echo "✔ monitoring ready"
+
+install-remote-monitoring:
+	@helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	@helm repo update
+	@helm upgrade --install prom-agent prometheus-community/prometheus \
+	  --namespace monitoring \
+	  --create-namespace \
+	  --set server.persistentVolume.enabled=false \
+	  --set alertmanager.enabled=false \
+	  --values monitoring/values-remote-write.yaml
+	@kubectl -n monitoring rollout status deployment/prom-agent-prometheus-server
+	@echo "✅ Prometheus agent installed with remote write configured"
 
 apply-dashboards:
 	@echo "▶ Applying Grafana dashboards"
@@ -133,6 +152,7 @@ deploy-knative:
 	fi
 	$(MAKE) create-knative
 	$(MAKE) install-knative
+	$(MAKE) install-knative-deployments
 	$(MAKE) install-remote-monitoring
 	@echo "✔ deploy-knative complete — cluster-knative is ready"
 
