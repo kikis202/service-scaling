@@ -41,13 +41,18 @@ export function createTracingMiddleware(tracer) {
     // Store span in request object
     req.span = span;
 
+    let spanFinished = false;
+
     // Finish span on response finish
     const finishSpan = () => {
-      if (res.statusCode >= 400) {
-        span.setTag(opentracing.Tags.ERROR, true);
-        span.setTag(opentracing.Tags.HTTP_STATUS_CODE, res.statusCode);
+      if (!spanFinished) {
+        spanFinished = true;
+        if (res.statusCode >= 400) {
+          span.setTag(opentracing.Tags.ERROR, true);
+          span.setTag(opentracing.Tags.HTTP_STATUS_CODE, res.statusCode);
+        }
+        span.finish();
       }
-      span.finish();
     };
 
     res.on('finish', finishSpan);
