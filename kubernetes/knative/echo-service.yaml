@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: echo-service
   annotations:
-    sidecar.jaegertracing.io/collector-endpoint: "http://host.k3d.internal:14268/api/traces"
+    sidecar.jaegertracing.io/collector-endpoint: "http://192.168.100.103:14268/api/traces"
 spec:
   template:
     metadata:
@@ -44,7 +44,8 @@ spec:
         - name: JAEGER_REPORTER_LOG_SPANS
           value: "true"
         - name: JAEGER_COLLECTOR_ENDPOINT
-          value: "http://host.k3d.internal:14268/api/traces"
+          value: "http://192.168.100.103:14268/api/traces"
         - name: JAEGER_AGENT_HOST
-          value: "host.k3d.internal"
+          value: "192.168.100.103"
         - name: JAEGER_AGENT_PORT
+          value: "6831"
