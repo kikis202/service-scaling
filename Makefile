@@ -180,7 +180,7 @@ setup-monitoring-environment:
 	@echo "✔ Monitoring environment ready"
 
 ## 3. Image Building
-build-images: build-echo build-cpu
+build-images: build-echo build-cpu build-io
 
 build-echo:
 	docker build -t echo-service:v1 --target echo-service -f Dockerfile .
@@ -192,6 +192,11 @@ build-cpu:
 	docker build -t k3d-registry.localhost:5000/cpu-service:v1 --target cpu-service -f Dockerfile .
 	@echo "✔ cpu-service images built"
 
+build-io:
+	docker build -t io-service:v1 --target io-service -f Dockerfile .
+	docker build -t k3d-registry.localhost:5000/io-service:v1 --target io-service -f Dockerfile .
+	@echo "✔ io-service images built"
+
 ## 4. Service Deployments
 deploy-echo-hpa:
 	$(call check_and_build_image,echo)
@@ -202,6 +207,11 @@ deploy-cpu-hpa:
 	$(call check_and_build_image,cpu)
 	@k3d image import cpu-service:v1 --cluster cluster-hpa 2>/dev/null || true
 	$(call deploy_service,hpa,cpu)
+
+deploy-io-hpa:
+	$(call check_and_build_image,io)
+	@k3d image import io-service:v1 --cluster cluster-hpa 2>/dev/null || true
+	$(call deploy_service,hpa,io)
 
 deploy-echo-knative:
 	$(call check_and_build_registry_image,echo)
@@ -235,6 +245,22 @@ deploy-cpu-knative:
 	@kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "k3d-registry-credentials"}]}'
 	$(call deploy_service,knative,cpu)
 
+deploy-io-knative:
+	$(call check_and_build_registry_image,io)
+	@if ! k3d cluster list | grep -qw cluster-knative; then \
+	  echo "❌ cluster-knative is not running. Please run 'make setup-knative-environment' first."; \
+	  exit 1; \
+	fi
+	@docker push k3d-registry.localhost:5000/io-service:v1
+	@kubectl config use-context k3d-cluster-knative
+	@kubectl create secret docker-registry k3d-registry-credentials \
+	  --docker-server=registry.localhost:5000 \
+	  --docker-username=k3d \
+	  --docker-password=registry \
+	  --dry-run=client -o yaml | kubectl apply -f -
+	@kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "k3d-registry-credentials"}]}'
+	$(call deploy_service,knative,io)
+
 ## 6. One-step deployment targets
 setup-hpa-echo: setup-hpa-environment
 	@$(MAKE) deploy-echo-hpa
@@ -244,6 +270,10 @@ setup-hpa-cpu: setup-hpa-environment
 	@$(MAKE) deploy-cpu-hpa
 	@echo "✔ CPU service HPA test environment ready"
 
+setup-hpa-io: setup-hpa-environment
+	@$(MAKE) deploy-io-hpa
+	@echo "✔ IO service HPA test environment ready"
+
 setup-knative-echo: setup-knative-environment
 	@$(MAKE) deploy-echo-knative
 	@echo "✔ Echo service Knative test environment ready"
@@ -251,6 +281,10 @@ setup-knative-echo: setup-knative-environment
 setup-knative-cpu: setup-knative-environment
 	@$(MAKE) deploy-cpu-knative
 	@echo "✔ CPU service Knative test environment ready"
+
+setup-knative-io: setup-knative-environment
+	@$(MAKE) deploy-io-knative
+	@echo "✔ IO service Knative test environment ready"
 
 ## 7. Cleanup
 teardown:

@@ -1,0 +1,56 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: io-service
+  annotations:
+    sidecar.jaegertracing.io/collector-endpoint: "http://192.168.100.103:14268/api/traces"
+spec:
+  template:
+    metadata:
+      annotations:
+        # Configure Knative autoscaling
+        autoscaling.knative.dev/class: "kpa.autoscaling.knative.dev"
+        autoscaling.knative.dev/metric: "concurrency"
+        autoscaling.knative.dev/target: "10"
+        autoscaling.knative.dev/min-scale: "0"
+        autoscaling.knative.dev/max-scale: "10"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containerConcurrency: 10
+      timeoutSeconds: 300
+      containers:
+      - name: io-service
+        image: registry.localhost:5000/io-service:v1
+        ports:
+        - containerPort: 3000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+        env:
+        - name: JAEGER_SERVICE_NAME
+          value: "ioService"
+        - name: JAEGER_SAMPLER_TYPE
+          value: "const"
+        - name: JAEGER_SAMPLER_PARAM
+          value: "1"
+        - name: JAEGER_REPORTER_LOG_SPANS
+          value: "true"
+        - name: JAEGER_COLLECTOR_ENDPOINT
+          value: "http://192.168.100.103:14268/api/traces"
+        - name: JAEGER_AGENT_HOST
+          value: "192.168.100.103"
+        - name: JAEGER_AGENT_PORT
+          value: "6831"

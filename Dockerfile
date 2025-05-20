@@ -39,6 +39,21 @@ COPY services/cpu-service/ ./
 EXPOSE 3000
 CMD ["node", "server.js"]
 
+# ---- IO Service ----
+FROM base AS io-service
+WORKDIR /app
+
+RUN mkdir -p io-service
+COPY services/io-service/package.json io-service/
+
+WORKDIR /app/io-service
+RUN npm install --omit=dev
+
+COPY services/io-service/ ./
+
+EXPOSE 3000
+CMD ["node", "server.js"]
+
 # Template for adding new services:
 #
 # ---- New Service ----
