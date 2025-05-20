@@ -14,7 +14,7 @@ options:
   kubeconfig:
     updateDefaultKubeconfig: true
 ports:
-  - port: "3000:3000"
+  - port: "8080:3000"
     nodeFilters:
       - loadbalancer
 

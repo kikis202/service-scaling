@@ -1,7 +1,7 @@
 {
-  "name": "echo-service",
+  "name": "cpu-service",
   "version": "1.0.0",
-  "description": "Simple echo service for microservice architecture comparison",
+  "description": "CPU-intensive service using Fibonacci calculation",
   "license": "ISC",
   "author": "Kristaps Kozulis",
   "type": "module",
