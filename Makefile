@@ -145,11 +145,19 @@ create-monitoring-cluster:
 	$(call ensure_single_cluster,cluster-monitoring)
 
 ## 2. Environment Setup
+setup-tracing-knative:
+	@echo "▶ Configuring tracing for Knative"
+	@kubectl apply -f monitoring/kourier-tracing-config.yaml --context k3d-cluster-knative
+	@kubectl apply -f monitoring/knative-tracing-config.yaml --context k3d-cluster-knative
+	@kubectl rollout restart deployment/kourier -n kourier-system --context k3d-cluster-knative
+	@echo "✔ Tracing configured for Knative"
+
 setup-hpa-environment: 
 	$(call check_other_clusters,cluster-hpa)
 	$(call ensure_single_cluster,cluster-hpa)
 	$(call install_knative,hpa)
 	$(call setup_remote_monitoring,hpa)
+	@$(MAKE) setup-tracing-knative
 	@echo "✔ HPA test environment is ready"
 
 setup-knative-environment:
@@ -157,6 +165,7 @@ setup-knative-environment:
 	$(call ensure_single_cluster,cluster-knative)
 	$(call install_knative,knative)
 	$(call setup_remote_monitoring,knative)
+	@$(MAKE) setup-tracing-knative
 	@echo "✔ Knative test environment is ready"
 
 setup-monitoring-environment:

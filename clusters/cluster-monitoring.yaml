@@ -26,3 +26,6 @@ ports:
   - port: "14268:14268"          # Jaeger collector
     nodeFilters:
       - loadbalancer
+  - port: "9411:9411"            # Zipkin endpoint for Jaeger
+    nodeFilters:
+      - loadbalancer
