@@ -5,6 +5,6 @@ metadata:
   namespace: knative-serving
 data:
   backend: "zipkin"
-  zipkin-endpoint: "http://192.168.100.103:9411/api/v2/spans"
+  zipkin-endpoint: "http://192.168.100.102:9411/api/v2/spans"
   debug: "true"
   sample-rate: "1.0"

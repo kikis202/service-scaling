@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: io-service
   annotations:
-    sidecar.jaegertracing.io/collector-endpoint: "http://192.168.100.103:14268/api/traces"
+    sidecar.jaegertracing.io/collector-endpoint: "http://192.168.100.102:14268/api/traces"
 spec:
   template:
     metadata:

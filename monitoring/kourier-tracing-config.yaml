@@ -4,5 +4,5 @@ metadata:
   name: config-kourier
   namespace: knative-serving
 data:
-  tracing-collector-full-endpoint: "http://192.168.100.103:9411/api/v2/spans"
+  tracing-collector-full-endpoint: "http://192.168.100.102:9411/api/v2/spans"
 
