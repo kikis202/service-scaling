@@ -30,21 +30,9 @@ spec:
           limits:
             cpu: 500m
             memory: 256Mi
-        env:
-        - name: JAEGER_SERVICE_NAME
-          value: "echo-service"
-        - name: JAEGER_SAMPLER_TYPE
-          value: "const"
-        - name: JAEGER_SAMPLER_PARAM
-          value: "1"
-        - name: JAEGER_REPORTER_LOG_SPANS
-          value: "true"
-        - name: JAEGER_COLLECTOR_ENDPOINT
-          value: "http://192.168.100.103:14268/api/traces"
-        - name: JAEGER_AGENT_HOST
-          value: "192.168.100.103"
-        - name: JAEGER_AGENT_PORT
-          value: "6831"
+        envFrom:
+        - configMapRef:
+            name: service-config
         readinessProbe:
           httpGet:
             path: /health

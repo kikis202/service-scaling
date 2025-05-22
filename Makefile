@@ -103,6 +103,7 @@ define setup_remote_monitoring
     echo "❌ cluster-$(1) is not running. Please run 'make create-$(1)-cluster' first."; \
     exit 1; \
   fi
+  @kubectl apply -f kubernetes/service-config.yaml
   @echo "▶ Installing Prometheus agent on cluster-$(1)"
   @kubectl config use-context k3d-cluster-$(1)
   @helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
