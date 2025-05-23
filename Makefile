@@ -121,6 +121,7 @@ define setup_remote_monitoring
   @kubectl -n monitoring rollout status deployment/prom-agent-prometheus-server
   @echo "✔ Prometheus agent installed on cluster-$(1)"
   @kubectl apply -f monitoring/kourier-tracing-config.yaml
+  @kubectl apply -f monitoring/kourier-envoy-servicemonitor.yaml
   @kubectl apply -f monitoring/knative-tracing-config.yaml
   @kubectl -n kourier-system rollout restart deployment 3scale-kourier-gateway
   @echo "✔ Zipkin traces set up on cluster-$(1)"
