@@ -449,7 +449,7 @@ CPU_BODY        ?= {"n":$(CPU_N)}
 
 IO_HOST         ?= io-service.default.example.com
 IO_ENDPOINT     ?= $(BASE_URL)/simulate-io
-IO_BODY         ?= {"operations":5,"pattern":"sequential"}
+IO_BODY         ?= {"operations":5,"pattern":"sequential","variability":0,"failureRate":0}
 
 test-constant:
 	@mkdir -p $(RESULT_DIR)
