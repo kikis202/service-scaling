@@ -173,7 +173,7 @@ define export_prometheus_metrics
     --data-urlencode "query=rate(http_requests_total[1m])" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
-    --data-urlencode "step=15s" \
+    --data-urlencode "step=5s" \
     | jq '.' > $(RESULT_DIR)/prometheus/$(1)_http_requests_$${timestamp}.json 2>/dev/null || echo "⚠ HTTP requests query failed"; \
   \
   echo "▶ Fetching response time P95..."; \
@@ -181,7 +181,7 @@ define export_prometheus_metrics
     --data-urlencode "query=histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[1m]))" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
-    --data-urlencode "step=15s" \
+    --data-urlencode "step=5s" \
     | jq '.' > $(RESULT_DIR)/prometheus/$(1)_response_time_p95_$${timestamp}.json 2>/dev/null || echo "⚠ Response time query failed"; \
   \
   echo "▶ Fetching CPU usage..."; \
@@ -189,7 +189,7 @@ define export_prometheus_metrics
     --data-urlencode "query=rate(container_cpu_usage_seconds_total[1m])" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
-    --data-urlencode "step=15s" \
+    --data-urlencode "step=5s" \
     | jq '.' > $(RESULT_DIR)/prometheus/$(1)_cpu_usage_$${timestamp}.json 2>/dev/null || echo "⚠ CPU usage query failed"; \
   \
   echo "▶ Fetching memory usage..."; \
@@ -197,7 +197,7 @@ define export_prometheus_metrics
     --data-urlencode "query=container_memory_working_set_bytes" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
-    --data-urlencode "step=15s" \
+    --data-urlencode "step=5s" \
     | jq '.' > $(RESULT_DIR)/prometheus/$(1)_memory_usage_$${timestamp}.json 2>/dev/null || echo "⚠ Memory usage query failed"; \
   \
   echo "▶ Fetching pod count..."; \
@@ -205,7 +205,7 @@ define export_prometheus_metrics
     --data-urlencode "query=kube_pod_info" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
-    --data-urlencode "step=15s" \
+    --data-urlencode "step=5s" \
     | jq '.' > $(RESULT_DIR)/prometheus/$(1)_pod_count_$${timestamp}.json 2>/dev/null || echo "⚠ Pod count query failed"; \
   \
   echo "✔ Prometheus metrics exported to $(RESULT_DIR)/prometheus/"
