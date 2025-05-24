@@ -18,7 +18,7 @@ spec:
         prometheus.io/port: "3000"
         prometheus.io/path: "/metrics"
     spec:
-      containerConcurrency: 10
+      containerConcurrency: 60
       timeoutSeconds: 300
       containers:
       - name: cpu-service
