@@ -40,7 +40,7 @@ data:
           },
           "id": 1,
           "panels": [],
-          "title": "Echo Service Overview",
+          "title": "CPU Service Overview",
           "type": "row"
         },
         {
