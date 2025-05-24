@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: echo-service-dashboard
+  name: cpu-service-dashboard
   namespace: monitoring
   labels:
     grafana_dashboard: "1"
 data:
-  echo-service-dashboard.json: |-
+  cpu-service-dashboard.json: |-
     {
       "annotations": {
         "list": [
@@ -27,7 +27,7 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
-      "id": 30,
+      "id": 31,
       "links": [],
       "panels": [
         {
@@ -131,7 +131,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(rate(http_requests_total{service=\"echoService\",route=\"/echo\"}[1m])) by (code)",
+              "expr": "sum(rate(http_requests_total{service=\"cpuService\",route=\"/fibonacci\"}[1m])) by (code)",
               "legendFormat": "HTTP {{code}}",
               "range": true,
               "refId": "A"
@@ -236,7 +236,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{service=\"echoService\",route=\"/echo\"}[1m])) by (le))",
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{service=\"cpuService\",route=\"/fibonacci\"}[1m])) by (le))",
               "legendFormat": "P50",
               "range": true,
               "refId": "A"
@@ -247,7 +247,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"echoService\",route=\"/echo\"}[1m])) by (le))",
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"cpuService\",route=\"/fibonacci\"}[1m])) by (le))",
               "legendFormat": "P95",
               "range": true,
               "refId": "B"
@@ -258,7 +258,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"echoService\",route=\"/echo\"}[1m])) by (le))",
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"cpuService\",route=\"/fibonacci\"}[1m])) by (le))",
               "legendFormat": "P99",
               "range": true,
               "refId": "C"
@@ -269,7 +269,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.9999, sum(rate(http_request_duration_seconds_bucket{service=\"echoService\",route=\"/echo\"}[1m])) by (le))",
+              "expr": "histogram_quantile(0.9999, sum(rate(http_request_duration_seconds_bucket{service=\"cpuService\",route=\"/fibonacci\"}[1m])) by (le))",
               "legendFormat": "P99.99",
               "range": true,
               "refId": "D"
@@ -381,7 +381,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "count(up{pod=~\"echo-service-.*\"}) or count(kube_pod_info{pod=~\"echo-service-.*\"}) or vector(0)",
+              "expr": "count(up{pod=~\"cpu-service-.*\"}) or count(kube_pod_info{pod=~\"cpu-service-.*\"}) or vector(0)",
               "legendFormat": "Running Pods",
               "range": true,
               "refId": "A"
@@ -591,7 +591,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{pod=~\"echo-service-.*\"}[1m]) / scalar(sum(machine_cpu_cores))) * 100",
+              "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{pod=~\"cpu-service-.*\"}[1m]) / scalar(sum(machine_cpu_cores))) * 100",
               "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
@@ -699,7 +699,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "(sum(rate(container_cpu_usage_seconds_total{pod=~\"echo-service-.*\"}[1m])) / sum(machine_cpu_cores)) * 100",
+              "expr": "(sum(rate(container_cpu_usage_seconds_total{pod=~\"cpu-service-.*\"}[1m])) / sum(machine_cpu_cores)) * 100",
               "hide": false,
               "instant": false,
               "legendFormat": "Pod CPU Utilization",
@@ -806,7 +806,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "container_memory_working_set_bytes{container=\"echo-service\"}",
+              "expr": "container_memory_working_set_bytes{container=\"cpu-service\"}",
               "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
@@ -899,7 +899,7 @@ data:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "sum(container_memory_working_set_bytes{container=\"echo-service\"})",
+              "expr": "sum(container_memory_working_set_bytes{container=\"cpu-service\"})",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -913,8 +913,8 @@ data:
       "refresh": "10s",
       "schemaVersion": 41,
       "tags": [
-        "echo-service",
-        "microservices"
+        "microservices",
+        "cpu-service"
       ],
       "templating": {
         "list": []
@@ -925,7 +925,7 @@ data:
       },
       "timepicker": {},
       "timezone": "",
-      "title": "Echo Service Dashboard",
-      "uid": "d545957f-c80e-4655-9168-d754db04bd2f",
-      "version": 7
+      "title": "CPU Service Dashboard",
+      "uid": "5261b231-256b-4139-a84e-bf72fe5dae22",
+      "version": 6
     }
