@@ -29,3 +29,6 @@ ports:
   - port: "9411:9411"            # Zipkin endpoint for Jaeger
     nodeFilters:
       - loadbalancer
+  - port: "9200:9200"            # Elasticsearch
+    nodeFilters:
+      - loadbalancer

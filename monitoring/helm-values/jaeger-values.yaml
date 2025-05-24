@@ -44,6 +44,11 @@ elasticsearch:
       limits:
         memory: "2Gi"
 
+  service:
+    type: LoadBalancer
+    port: 9200
+    targetPort: 9200
+
   extraEnvVars:
     - name: ES_JAVA_OPTS
       value: "-Xms1g -Xmx1g"

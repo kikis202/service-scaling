@@ -147,10 +147,24 @@ define get_jaeger_service_name
 $(if $(filter echo%, $(1)),echoService,$(if $(filter cpu%, $(1)),cpuService,$(if $(filter io%, $(1)),ioService,$(1))))
 endef
 
+define export_jaeger_traces
+  @echo "▶ Exporting Jaeger traces for $(1) test..."
+  @mkdir -p $(RESULT_DIR)
+  jaeger_service_name="$$(echo "$(call get_jaeger_service_name,$(1))")"; \
+  echo "▶ Using Jaeger service name: $${jaeger_service_name}"; \
+  echo "▶ Activating Python virtual environment and running trace export..."; \
+  cd scripts && \
+  source .venv/bin/activate && \
+  python jaeger_exporter.py \
+    --service "$${jaeger_service_name}" && \
+  deactivate && \
+  cd ..
+  echo "✔ Jaeger traces exported to $(RESULT_DIR)/"
+endef
 
 define export_prometheus_metrics
   @echo "▶ Exporting Prometheus metrics for $(1) test..."
-  @mkdir -p $(RESULT_DIR)/prometheus
+  @mkdir -p $(RESULT_DIR)
   @if [ -z "$(2)" ]; then \
     echo "❌ Duration not specified"; \
     exit 1; \
@@ -168,108 +182,173 @@ define export_prometheus_metrics
     exit 1; \
   fi; \
   \
-  echo "▶ Fetching HTTP request rate..."; \
+  service_name=""; \
+  route_name=""; \
+  pod_pattern=""; \
+  container_name=""; \
+  case "$(1)" in \
+    *echo*) \
+      service_name="echoService"; \
+      route_name="/echo"; \
+      pod_pattern="echo-service-.*"; \
+      container_name="echo-service"; \
+      ;; \
+    *cpu*) \
+      service_name="cpuService"; \
+      route_name="/fibonacci"; \
+      pod_pattern="cpu-service-.*"; \
+      container_name="cpu-service"; \
+      ;; \
+    *io*) \
+      service_name="ioService"; \
+      route_name="/simulate-io"; \
+      pod_pattern="io-service-.*"; \
+      container_name="io-service"; \
+      ;; \
+    *) \
+      echo "❌ Unknown service type: $(1)"; \
+      exit 1; \
+      ;; \
+  esac; \
+  echo "▶ Using service_name=$${service_name}, route=$${route_name}, pod_pattern=$${pod_pattern}"; \
+  \
+  echo "▶ Fetching HTTP request rate by response code..."; \
   curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
-    --data-urlencode "query=rate(http_requests_total[1m])" \
+    --data-urlencode "query=sum(rate(http_requests_total{service=\"$${service_name}\",route=\"$${route_name}\"}[1m])) by (code)" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
     --data-urlencode "step=5s" \
-    | jq '.' > $(RESULT_DIR)/prometheus/$(1)_http_requests_$${timestamp}.json 2>/dev/null || echo "⚠ HTTP requests query failed"; \
+    | jq '.' > $(RESULT_DIR)/$(1)_http_requests_by_code_$${timestamp}.json 2>/dev/null || echo "⚠ HTTP requests by code query failed"; \
+  \
+  echo "▶ Fetching response time P50..."; \
+  curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
+    --data-urlencode "query=histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{service=\"$${service_name}\",route=\"$${route_name}\"}[1m])) by (le))" \
+    --data-urlencode "start=$${test_start}" \
+    --data-urlencode "end=$${test_end}" \
+    --data-urlencode "step=5s" \
+    | jq '.' > $(RESULT_DIR)/$(1)_response_time_p50_$${timestamp}.json 2>/dev/null || echo "⚠ Response time P50 query failed"; \
   \
   echo "▶ Fetching response time P95..."; \
   curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
-    --data-urlencode "query=histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[1m]))" \
+    --data-urlencode "query=histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"$${service_name}\",route=\"$${route_name}\"}[1m])) by (le))" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
     --data-urlencode "step=5s" \
-    | jq '.' > $(RESULT_DIR)/prometheus/$(1)_response_time_p95_$${timestamp}.json 2>/dev/null || echo "⚠ Response time query failed"; \
+    | jq '.' > $(RESULT_DIR)/$(1)_response_time_p95_$${timestamp}.json 2>/dev/null || echo "⚠ Response time P95 query failed"; \
   \
-  echo "▶ Fetching CPU usage..."; \
+  echo "▶ Fetching response time P99..."; \
   curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
-    --data-urlencode "query=rate(container_cpu_usage_seconds_total[1m])" \
+    --data-urlencode "query=histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"$${service_name}\",route=\"$${route_name}\"}[1m])) by (le))" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
     --data-urlencode "step=5s" \
-    | jq '.' > $(RESULT_DIR)/prometheus/$(1)_cpu_usage_$${timestamp}.json 2>/dev/null || echo "⚠ CPU usage query failed"; \
+    | jq '.' > $(RESULT_DIR)/$(1)_response_time_p99_$${timestamp}.json 2>/dev/null || echo "⚠ Response time P99 query failed"; \
   \
-  echo "▶ Fetching memory usage..."; \
+  echo "▶ Fetching response time P99.99..."; \
   curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
-    --data-urlencode "query=container_memory_working_set_bytes" \
+    --data-urlencode "query=histogram_quantile(0.9999, sum(rate(http_request_duration_seconds_bucket{service=\"$${service_name}\",route=\"$${route_name}\"}[1m])) by (le))" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
     --data-urlencode "step=5s" \
-    | jq '.' > $(RESULT_DIR)/prometheus/$(1)_memory_usage_$${timestamp}.json 2>/dev/null || echo "⚠ Memory usage query failed"; \
+    | jq '.' > $(RESULT_DIR)/$(1)_response_time_p9999_$${timestamp}.json 2>/dev/null || echo "⚠ Response time P99.99 query failed"; \
   \
   echo "▶ Fetching pod count..."; \
   curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
-    --data-urlencode "query=kube_pod_info" \
+    --data-urlencode "query=count(up{pod=~\"$${pod_pattern}\"}) or count(kube_pod_info{pod=~\"$${pod_pattern}\"}) or vector(0)" \
     --data-urlencode "start=$${test_start}" \
     --data-urlencode "end=$${test_end}" \
     --data-urlencode "step=5s" \
-    | jq '.' > $(RESULT_DIR)/prometheus/$(1)_pod_count_$${timestamp}.json 2>/dev/null || echo "⚠ Pod count query failed"; \
+    | jq '.' > $(RESULT_DIR)/$(1)_pod_count_$${timestamp}.json 2>/dev/null || echo "⚠ Pod count query failed"; \
   \
-  echo "✔ Prometheus metrics exported to $(RESULT_DIR)/prometheus/"
+  echo "▶ Fetching Envoy connections (Knative)..."; \
+  curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
+    --data-urlencode "query=sum(envoy_http_downstream_cx_active{namespace=\"kourier-system\"}) or vector(0)" \
+    --data-urlencode "start=$${test_start}" \
+    --data-urlencode "end=$${test_end}" \
+    --data-urlencode "step=5s" \
+    | jq '.' > $(RESULT_DIR)/$(1)_envoy_connections_$${timestamp}.json 2>/dev/null || echo "⚠ Envoy connections query failed"; \
+  \
+  echo "▶ Fetching CPU usage by pod (percentage)..."; \
+  curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
+    --data-urlencode "query=sum by (pod)(rate(container_cpu_usage_seconds_total{pod=~\"$${pod_pattern}\"}[1m]) / scalar(sum(machine_cpu_cores))) * 100" \
+    --data-urlencode "start=$${test_start}" \
+    --data-urlencode "end=$${test_end}" \
+    --data-urlencode "step=5s" \
+    | jq '.' > $(RESULT_DIR)/$(1)_cpu_usage_by_pod_pct_$${timestamp}.json 2>/dev/null || echo "⚠ CPU usage by pod query failed"; \
+  \
+  echo "▶ Fetching total cluster CPU usage (percentage)..."; \
+  curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
+    --data-urlencode "query=(sum(rate(container_cpu_usage_seconds_total{}[1m])) / sum(machine_cpu_cores)) * 100" \
+    --data-urlencode "start=$${test_start}" \
+    --data-urlencode "end=$${test_end}" \
+    --data-urlencode "step=5s" \
+    | jq '.' > $(RESULT_DIR)/$(1)_cluster_cpu_usage_pct_$${timestamp}.json 2>/dev/null || echo "⚠ Cluster CPU usage query failed"; \
+  \
+  echo "▶ Fetching service CPU usage (percentage)..."; \
+  curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
+    --data-urlencode "query=(sum(rate(container_cpu_usage_seconds_total{pod=~\"$${pod_pattern}\"}[1m])) / sum(machine_cpu_cores)) * 100" \
+    --data-urlencode "start=$${test_start}" \
+    --data-urlencode "end=$${test_end}" \
+    --data-urlencode "step=5s" \
+    | jq '.' > $(RESULT_DIR)/$(1)_service_cpu_usage_pct_$${timestamp}.json 2>/dev/null || echo "⚠ Service CPU usage query failed"; \
+  \
+  echo "▶ Fetching memory usage by container..."; \
+  curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
+    --data-urlencode "query=container_memory_working_set_bytes{container=\"$${container_name}\"}" \
+    --data-urlencode "start=$${test_start}" \
+    --data-urlencode "end=$${test_end}" \
+    --data-urlencode "step=5s" \
+    | jq '.' > $(RESULT_DIR)/$(1)_memory_usage_by_container_$${timestamp}.json 2>/dev/null || echo "⚠ Memory usage by container query failed"; \
+  \
+  echo "▶ Fetching total service memory usage..."; \
+  curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
+    --data-urlencode "query=sum(container_memory_working_set_bytes{container=\"$${container_name}\"})" \
+    --data-urlencode "start=$${test_start}" \
+    --data-urlencode "end=$${test_end}" \
+    --data-urlencode "step=5s" \
+    | jq '.' > $(RESULT_DIR)/$(1)_total_service_memory_usage_$${timestamp}.json 2>/dev/null || echo "⚠ Total service memory usage query failed"; \
+  \
+  echo "▶ Fetching raw CPU usage (for debugging)..."; \
+  curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
+    --data-urlencode "query=rate(container_cpu_usage_seconds_total{pod=~\"$${pod_pattern}\"}[1m])" \
+    --data-urlencode "start=$${test_start}" \
+    --data-urlencode "end=$${test_end}" \
+    --data-urlencode "step=5s" \
+    | jq '.' > $(RESULT_DIR)/$(1)_raw_cpu_usage_$${timestamp}.json 2>/dev/null || echo "⚠ Raw CPU usage query failed"; \
+  \
+  echo "▶ Fetching machine CPU cores (for debugging)..."; \
+  curl -s -G "$(PROMETHEUS_URL)/api/v1/query_range" \
+    --data-urlencode "query=machine_cpu_cores" \
+    --data-urlencode "start=$${test_start}" \
+    --data-urlencode "end=$${test_end}" \
+    --data-urlencode "step=5s" \
+    | jq '.' > $(RESULT_DIR)/$(1)_machine_cpu_cores_$${timestamp}.json 2>/dev/null || echo "⚠ Machine CPU cores query failed"; \
+  \
+  echo "✔ Prometheus metrics exported to $(RESULT_DIR)/"
 endef
 
-define export_jaeger_traces
-  @echo "▶ Exporting Jaeger traces for $(1) test..."
-  @mkdir -p $(RESULT_DIR)/jaeger
-  @if [ -z "$(2)" ]; then \
-    echo "❌ Duration not specified"; \
-    exit 1; \
-  fi; \
-  echo "▶ Calculating timestamps for $(2) minutes ago..."; \
-  test_start_epoch=$$(date -d "$(2) minutes ago" +%s 2>/dev/null || date -v-$(2)M +%s); \
-  test_end_epoch=$$(date +%s); \
-  echo "▶ Epochs: start=$${test_start_epoch}, end=$${test_end_epoch}"; \
-  test_start_us=$$(echo "$${test_start_epoch} * 1000000" | bc 2>/dev/null || echo "$${test_start_epoch}000000"); \
-  test_end_us=$$(echo "$${test_end_epoch} * 1000000" | bc 2>/dev/null || echo "$${test_end_epoch}000000"); \
-  timestamp=$$(date +%Y%m%d_%H%M%S); \
-  echo "▶ Querying traces from $$(date -d "@$${test_start_epoch}" 2>/dev/null || date -r $${test_start_epoch}) to $$(date -d "@$${test_end_epoch}" 2>/dev/null || date -r $${test_end_epoch})"; \
-  \
-  jaeger_service_name="$$(echo "$(call get_jaeger_service_name,$(1))")"; \
-  echo "▶ Using Jaeger service name: $${jaeger_service_name}"; \
-  \
-  echo "▶ First checking if service exists..."; \
-  available_services=$$(curl -s "$(JAEGER_URL)/api/services" | jq -r '.data[]'); \
-  echo "Available services: $${available_services}"; \
-  \
-  if echo "$${available_services}" | grep -q "$${jaeger_service_name}"; then \
-    echo "✓ Service $${jaeger_service_name} found"; \
-    service_to_use="$${jaeger_service_name}"; \
-  else \
-    echo "❌ Service $${jaeger_service_name} not found, trying alternatives..."; \
-    service_to_use=$$(echo "$${available_services}" | grep -i "$(1)" | head -1); \
-    if [ -n "$${service_to_use}" ]; then \
-      echo "✓ Using alternative service: $${service_to_use}"; \
-    else \
-      echo "❌ No matching service found for $(1)"; \
-      echo "Available services:"; \
-      echo "$${available_services}" | head -5; \
-      echo "Skipping trace export..."; \
-      return 0; \
-    fi; \
-  fi; \
-  \
-  echo "▶ Fetching traces for service: $${service_to_use}"; \
-  curl -s "$(JAEGER_URL)/api/traces?service=$${service_to_use}&start=$${test_start_us}&end=$${test_end_us}&limit=10" \
-    | jq '.' > $(RESULT_DIR)/jaeger/$(1)_traces_$${timestamp}.json 2>/dev/null || echo "⚠ Traces query failed"; \
-  \
-  echo "▶ Fetching operations for service: $${service_to_use}"; \
-  curl -s "$(JAEGER_URL)/api/services/$${service_to_use}/operations" \
-    | jq '.' > $(RESULT_DIR)/jaeger/$(1)_operations_$${timestamp}.json 2>/dev/null || echo "⚠ Operations query failed"; \
-  \
-  echo "✔ Jaeger traces exported to $(RESULT_DIR)/jaeger/"
+define parse_results
+  @echo "▶ Parsing data for $(1) test..."
+  service_name="$$(echo "$(call get_jaeger_service_name,$(1))")"; \
+  echo "▶ Activating Python virtual environment and parsing data..."; \
+  cd scripts && \
+  source .venv/bin/activate && \
+  python data_parser.py \
+    --service "$${service_name}" && \
+  deactivate && \
+  cd ..
 endef
 
 define export_monitoring_data
   echo "▶ Exporting monitoring data for $(1) test..."
   @$(MAKE) export-prometheus SERVICE=$(1) DURATION=$(2)
-  @$(MAKE) export-jaeger SERVICE=$(1) DURATION=$(2)
+  @$(MAKE) export-jaeger SERVICE=$(1)
+  @$(MAKE) parse-results SERVICE=$(1)
   @echo "✔ All monitoring data exported for $(1)"
 endef
 
 define run_test_with_export
+  @rm -rf $(RESULT_DIR)
   @echo "▶ Starting $(1) test with monitoring export..."; \
   start_time=$$(date +%s); \
   echo "▶ Running test: $(2)"; \
@@ -435,7 +514,7 @@ setup-knative-io: setup-knative-environment
 ## 7. K6 tests
 BASE_URL        ?= http://192.168.100.103:8080
 
-RESULT_DIR      ?= monitoring/k6/results
+RESULT_DIR      ?= monitoring/k6/results/curent
 SUMMARY_STATS   ?= "avg,min,med,max,p(50),p(95),p(99),p(99.99)"
 
 ECHO_HOST       ?= echo-service.default.example.com
@@ -510,10 +589,13 @@ export-prometheus:
 	$(call export_prometheus_metrics,$(SERVICE),$(DURATION))
 
 export-jaeger:
-	$(call export_jaeger_traces,$(SERVICE),$(DURATION))
+	$(call export_jaeger_traces,$(SERVICE))
 
 export-all-monitoring:
 	$(call export_monitoring_data,$(SERVICE),$(DURATION))
+
+parse-results:
+	$(call parse_results,$(SERVICE))
 
 ## 8. Cleanup
 teardown:
