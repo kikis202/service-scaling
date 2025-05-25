@@ -9,10 +9,12 @@ export let options = {
       preAllocatedVUs: 200,
       maxVUs: 200,
       stages: [
-        { duration: __ENV.PERIOD || '3m', target: 0 },
-        { duration: '1m', target: __ENV.PEAK_RATE || 100 },
+        { duration: '1m', target: __ENV.PEAK_RATE || 200 },
         { duration: '1m', target: 0 },
-      ], // one 5 min cycle: 3m idle, 1m@100rps, 1m ramp-down :contentReference[oaicite:2]{index=2}
+        { duration: __ENV.PERIOD || '6m', target: 0 },
+        { duration: '1m', target: __ENV.PEAK_RATE || 200 },
+        { duration: '1m', target: 0 },
+      ], // one 8 min cycle: 6m idle, 1m@200rps, 1m ramp-down :contentReference[oaicite:2]{index=2}
     },
   },
 };
